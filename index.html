@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>keep tapping</title>
+
+  <meta property="og:title" content="keep tapping">
+  <meta property="og:description" content="this does something">
+  <meta property="og:image" content="preview.png">
+  <meta property="og:type" content="website">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      background: #fff7fb;
+      transition: background 240ms ease;
+      cursor: pointer;
+    }
+
+    #screen {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: clamp(5rem, 15vw, 10rem);
+      line-height: 1;
+      z-index: 4;
+      cursor: grab;
+      transition: transform 120ms ease, filter 200ms ease;
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.08));
+    }
+
+    #center.pop {
+      transform: translate(-50%, -50%) scale(1.1) rotate(-5deg);
+    }
+
+    .mini {
+      position: absolute;
+      pointer-events: none;
+      line-height: 1;
+      animation: floaty 6s ease-in-out infinite;
+      opacity: 0.92;
+    }
+
+    .burst {
+      position: absolute;
+      pointer-events: none;
+      line-height: 1;
+      animation: boom 900ms ease-out forwards;
+      z-index: 6;
+    }
+
+    .sig {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      font-size: 1rem;
+      color: #20161b;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    @keyframes floaty {
+      0% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-14px) rotate(6deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
+
+    @keyframes boom {
+      0% {
+        transform: translate(-50%, -50%) scale(0.35);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--x), var(--y)) scale(1.2) rotate(var(--r));
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="screen">
+    <div id="center">💌</div>
+    <div class="sig">♡ taylor</div>
+  </main>
+
+  <script>
+    const screen = document.getElementById('screen');
+    const center = document.getElementById('center');
+    const sig = document.querySelector('.sig');
+
+    const CLICKS_PER_VIBE = 12;
+
+    const vibes = [
+      {
+        big: ['💌','💋','🧸','🍓','🐇','✨','💘','🎀','🫶','🌷','🍒','🧁','🤍','🐩'],
+        tiny: ['✨','♡','💌','💋','🎀','🍓','🌷','🫶','🍒','🧁','🐇','🤍','🦋','💐'],
+        colors: ['#fff7fb','#ffe4ec','#fff1da','#f3e8ff','#eaf4ff','#fce7f3'],
+        burst: 10,
+        minis: 14,
+        dark: false,
+        fast: false
+      },
+      {
+        big: ['🍔','🍕','🌭','🍟','🍗','🍜','🍣','🌮'],
+        tiny: ['🍔','🍕','🌭','🍟','🍗','🔥','⚡'],
+        colors: ['#fff4e8','#ffe6cc','#fff0db','#fef3c7'],
+        burst: 12,
+        minis: 16,
+        dark: false,
+        fast: true
+      },
+      {
+        big: ['🐩','🐈','🐇','🦢','🧸','🐾'],
+        tiny: ['🐾','🦢','🐇','✨','🤍','🧸'],
+        colors: ['#fef6f9','#f3e8ff','#fff0f6'],
+        burst: 10,
+        minis: 16,
+        dark: false,
+        fast: false
+      },
+      {
+        big: ['🌪️','🌧️','⚡','☀️','🌊','🌩️'],
+        tiny: ['⚡','🌧️','🌊','💨','☀️'],
+        colors: ['#eaf4ff','#dbeafe','#f0f9ff'],
+        burst: 14,
+        minis: 18,
+        dark: false,
+        fast: true
+      },
+      {
+        big: ['🌊','🐚','🫧','☀️','🐬','🩵'],
+        tiny: ['🌊','🐚','🫧','✨','🐬'],
+        colors: ['linear-gradient(180deg,#dff7ff 0%,#b8ecff 45%,#fff0d9 100%)','#d9f3ff','#fff4dd'],
+        burst: 12,
+        minis: 18,
+        dark: false,
+        fast: false
+      },
+      {
+        big: ['🚧','🏗️','🔩','⚙️','🛠️'],
+        tiny: ['🔩','⚙️','🛠️','➕','⬛'],
+        colors: ['#fef3c7','#fde68a','#f59e0b'],
+        burst: 13,
+        minis: 18,
+        dark: false,
+        fast: true
+      },
+      {
+        big: ['💋','💌','💘','🔥','❤️‍🔥'],
+        tiny: ['💋','💌','💘','✨','❤️‍🔥'],
+        colors: ['#ffe3ea','#ffd1dd','#fff0f3'],
+        burst: 14,
+        minis: 18,
+        dark: false,
+        fast: false
+      },
+      {
+        big: ['🕶️','🎱','🖤','💿','🩶'],
+        tiny: ['🖤','★','✦','💿','🕶️'],
+        colors: ['#161616','#1f1f1f','#101010'],
+        burst: 9,
+        minis: 12,
+        dark: true,
+        fast: false
+      },
+      {
+        big: ['🪷','☁️','🌿','🤍','🫧'],
+        tiny: ['🪷','☁️','🌿','✨','🤍'],
+        colors: ['#f7f4ee','#eef4ea','#f3efe8'],
+        burst: 7,
+        minis: 14,
+        dark: false,
+        fast: false
+      },
+      {
+        big: ['🌀','⚡','💥','📺','◼️'],
+        tiny: ['⚡','🌀','💥','◼️','✦'],
+        colors: ['#d9ff00','#111111','#f8f8f8'],
+        burst: 18,
+        minis: 22,
+        dark: true,
+        fast: true
+      }
+    ];
+
+    let clicks = 0;
+    let dragging = false;
+    let dragDX = 0;
+    let dragDY = 0;
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function currentVibeIndex() {
+      return Math.floor(clicks / CLICKS_PER_VIBE) % vibes.length;
+    }
+
+    function currentVibe() {
+      return vibes[currentVibeIndex()];
+    }
+
+    function applyVibeBackground() {
+      const vibe = currentVibe();
+      const bg = pick(vibe.colors);
+      document.body.style.background = bg;
+
+      const textColor = vibe.dark ? '#f8f8f8' : '#20161b';
+      sig.style.color = textColor;
+      center.style.filter = vibe.dark
+        ? 'drop-shadow(0 0 20px rgba(255,255,255,0.18))'
+        : 'drop-shadow(0 8px 16px rgba(0,0,0,0.08))';
+    }
+
+    function makeMinis() {
+      document.querySelectorAll('.mini').forEach(el => el.remove());
+      const vibe = currentVibe();
+
+      for (let i = 0; i < vibe.minis; i++) {
+        const el = document.createElement('div');
+        el.className = 'mini';
+        el.textContent = pick(vibe.tiny);
+        el.style.left = rand(4, 92) + 'vw';
+        el.style.top = rand(6, 88) + 'vh';
+        el.style.fontSize = rand(1.1, vibe.fast ? 2.8 : 2.4) + 'rem';
+        el.style.animationDuration = rand(vibe.fast ? 2.5 : 4.5, vibe.fast ? 4.8 : 8) + 's';
+        screen.appendChild(el);
+      }
+    }
+
+    function popCenter() {
+      const vibe = currentVibe();
+      center.textContent = pick(vibe.big);
+      center.classList.remove('pop');
+      void center.offsetWidth;
+      center.classList.add('pop');
+    }
+
+    function burst(x, y) {
+      const vibe = currentVibe();
+      for (let i = 0; i < vibe.burst; i++) {
+        const el = document.createElement('div');
+        el.className = 'burst';
+        el.textContent = pick(vibe.tiny);
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.fontSize = rand(1.1, vibe.fast ? 3 : 2.5) + 'rem';
+        const spread = vibe.fast ? 220 : 140;
+        el.style.setProperty('--x', rand(-spread, spread) + 'px');
+        el.style.setProperty('--y', rand(-spread, spread) + 'px');
+        el.style.setProperty('--r', rand(-180, 180) + 'deg');
+        screen.appendChild(el);
+        setTimeout(() => el.remove(), 900);
+      }
+    }
+
+    function rain() {
+      const vibe = currentVibe();
+      for (let i = 0; i < 14; i++) {
+        const el = document.createElement('div');
+        el.className = 'burst';
+        el.textContent = pick(vibe.tiny);
+        el.style.left = rand(0, window.innerWidth) + 'px';
+        el.style.top = '-20px';
+        el.style.fontSize = rand(1.1, 2.3) + 'rem';
+        el.style.setProperty('--x', rand(-60, 60) + 'px');
+        el.style.setProperty('--y', (window.innerHeight + rand(40, 120)) + 'px');
+        el.style.setProperty('--r', rand(-120, 120) + 'deg');
+        el.style.animationDuration = '1200ms';
+        screen.appendChild(el);
+        setTimeout(() => el.remove(), 1200);
+      }
+    }
+
+    function handlePointer(clientX, clientY) {
+      const previousVibe = currentVibeIndex();
+      clicks += 1;
+      const newVibe = currentVibeIndex();
+
+      applyVibeBackground();
+      popCenter();
+      burst(clientX, clientY);
+
+      if (clicks % 4 === 0) {
+        rain();
+      }
+
+      if (newVibe !== previousVibe || clicks % 10 === 0) {
+        makeMinis();
+      }
+    }
+
+    screen.addEventListener('pointerdown', (e) => {
+      if (e.target === center) return;
+      handlePointer(e.clientX, e.clientY);
+    });
+
+    center.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      const rect = center.getBoundingClientRect();
+      dragDX = e.clientX - (rect.left + rect.width / 2);
+      dragDY = e.clientY - (rect.top + rect.height / 2);
+      center.setPointerCapture(e.pointerId);
+      handlePointer(e.clientX, e.clientY);
+    });
+
+    center.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const x = e.clientX - dragDX;
+      const y = e.clientY - dragDY;
+      center.style.left = x + 'px';
+      center.style.top = y + 'px';
+      center.style.transform = 'translate(-50%, -50%)';
+    });
+
+    function endDrag() {
+      dragging = false;
+      center.style.cursor = 'grab';
+    }
+
+    center.addEventListener('pointerup', endDrag);
+    center.addEventListener('pointercancel', endDrag);
+
+    makeMinis();
+    applyVibeBackground();
+    popCenter();
+  </script>
+</body>
+</html>
